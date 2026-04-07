@@ -9,8 +9,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -29,6 +31,27 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Validate or Create Icon
+        run: |
+          echo "Checking icon"
+          
+          if [ -f assets/icon.base64 ]; then
+            tr -d '\n' < assets/icon.base64 | base64 -d > assets/icon.png
+          else
+            echo "No icon.base64 found"
+            exit 1
+          fi
+
+          if [ ! -s assets/icon.png ]; then
+            echo "Empty or invalid icon"
+            exit 1
+          fi
+
+          file assets/icon.png | grep -q "PNG image"
+
+      - name: Generate Android Assets
+        run: npx @capacitor/assets generate --android
+
       - name: Sync Android
         run: npx cap sync android
 
@@ -39,18 +62,12 @@ jobs:
           gradle wrapper --gradle-version 8.13
           chmod +x gradlew
 
-      - name: Clean Android Build
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew clean
-
       - name: Build with Gradle
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace --info
-        
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
